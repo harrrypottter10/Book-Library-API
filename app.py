@@ -12,200 +12,355 @@ st.set_page_config(
 )
 
 
-# -------------------------------
-# Sidebar
-# -------------------------------
+# --------------------------------
+# Session State
+# --------------------------------
 
-st.sidebar.title("📚 Book Library")
+if "selected_book" not in st.session_state:
+    st.session_state.selected_book = None
 
-menu = st.sidebar.radio(
-    "Menu",
-    [
-        "🏠 Home",
-        "➕ Add Book",
-        "📖 View Books",
-        "🔍 Find Book",
-        "✏️ Update Book",
-        "🗑️ Delete Book"
-    ]
-)
+if "show_add" not in st.session_state:
+    st.session_state.show_add = False
 
 
-# -------------------------------
-# Home
-# -------------------------------
+# --------------------------------
+# Functions
+# --------------------------------
 
-if menu == "🏠 Home":
+def get_books(search=""):
 
-    st.title("📚 Book Library")
+    if search:
+        response = requests.get(
+            f"{API_URL}/search",
+            params={"title": search}
+        )
+    else:
+        response = requests.get(
+            f"{API_URL}/"
+        )
 
-    st.subheader("Welcome!")
+    if response.status_code == 200:
+        return response.json()
 
-    st.write(
-        "Manage your books using this simple Book Library application."
+    return []
+
+
+# --------------------------------
+# Header
+# --------------------------------
+
+st.title("📚 Book Library")
+
+st.write("Find your favorite books")
+
+
+# --------------------------------
+# Search + Add Book
+# --------------------------------
+
+col1, col2 = st.columns([5, 1])
+
+with col1:
+
+    search = st.text_input(
+        "🔍 Search",
+        placeholder="Search books by name...",
+        label_visibility="collapsed"
     )
 
+with col2:
+
+    if st.button("➕ Add Book", use_container_width=True):
+
+        st.session_state.show_add = True
+        st.session_state.selected_book = None
 
 
-# -------------------------------
+# --------------------------------
 # Add Book
-# -------------------------------
+# --------------------------------
 
-elif menu == "➕ Add Book":
+if st.session_state.show_add:
 
-    st.title("➕ Add Book")
+    st.subheader("➕ Add New Book")
 
-    title = st.text_input("Title")
-    author = st.text_input("Author")
-    genre = st.text_input("Genre")
+    col1, col2 = st.columns(2)
 
-    year = st.number_input(
-        "Year",
-        min_value=1001,
-        step=1
-    )
+    with col1:
 
-    in_stock = st.checkbox(
-        "In Stock",
-        value=False
-    )
+        title = st.text_input("Book Name")
+        author = st.text_input("Author")
+        genre = st.text_input("Genre")
 
-    if st.button("Add Book"):
+    with col2:
 
-        if not title or not author or not genre:
-            st.warning("Please fill all fields.")
+        year = st.number_input(
+            "Year",
+            min_value=1001,
+            step=1
+        )
 
-        else:
+        in_stock = st.checkbox(
+            "In Stock",
+            value=False
+        )
 
-            data = {
-                "title": title,
-                "author": author,
-                "genre": genre,
-                "year": year,
-                "in_stock": in_stock
-            }
+    col1, col2 = st.columns(2)
 
-            response = requests.post(
-                f"{API_URL}/",
-                json=data
+    with col1:
+
+        if st.button(
+            "Add Book",
+            use_container_width=True
+        ):
+
+            if not title or not author or not genre:
+
+                st.warning(
+                    "Please fill all fields."
+                )
+
+            else:
+
+                data = {
+                    "title": title,
+                    "author": author,
+                    "genre": genre,
+                    "year": year,
+                    "in_stock": in_stock
+                }
+
+                response = requests.post(
+                    f"{API_URL}/",
+                    json=data
+                )
+
+                if response.status_code == 200:
+
+                    st.success(
+                        "Book added successfully!"
+                    )
+
+                    st.session_state.show_add = False
+                    st.rerun()
+
+                else:
+
+                    st.error(
+                        response.text
+                    )
+
+    with col2:
+
+        if st.button(
+            "Cancel",
+            use_container_width=True
+        ):
+
+            st.session_state.show_add = False
+            st.rerun()
+
+
+# --------------------------------
+# Selected Book Details
+# --------------------------------
+
+if st.session_state.selected_book:
+
+    book = st.session_state.selected_book
+
+    st.divider()
+
+    if st.button("← Back to Books"):
+
+        st.session_state.selected_book = None
+        st.rerun()
+
+    st.header(f"📖 {book['title']}")
+
+    st.write(f"**Author:** {book['author']}")
+    st.write(f"**Genre:** {book['genre']}")
+    st.write(f"**Year:** {book['year']}")
+
+    if book["in_stock"]:
+        st.success("In Stock: ✅ Yes")
+    else:
+        st.error("In Stock: ❌ No")
+
+    st.caption(f"Book ID: {book['id']}")
+
+    st.divider()
+
+    # --------------------------------
+    # Edit and Delete Buttons
+    # --------------------------------
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        if st.button(
+            "✏️ Edit Book",
+            use_container_width=True
+        ):
+
+            st.session_state.edit_book = True
+            st.rerun()
+
+    with col2:
+
+        if st.button(
+            "🗑️ Delete Book",
+            use_container_width=True
+        ):
+
+            response = requests.delete(
+                f"{API_URL}/{book['id']}"
             )
 
             if response.status_code == 200:
 
-                result = response.json()
-
-                st.success("Book added successfully!")
-
-                st.write(
-                    f"Book ID: `{result['id']}`"
+                st.success(
+                    "Book deleted successfully!"
                 )
+
+                st.session_state.selected_book = None
+                st.session_state.edit_book = False
+
+                st.rerun()
 
             else:
 
                 st.error(response.text)
 
 
-# -------------------------------
-# View Books
-# -------------------------------
+    # --------------------------------
+    # Edit Form
+    # --------------------------------
 
-elif menu == "📖 View Books":
+    if st.session_state.get("edit_book", False):
 
-    st.title("📖 All Books")
+        st.divider()
 
-    if st.button("Load Books"):
+        st.subheader("✏️ Edit Book")
 
-        response = requests.get(
-            f"{API_URL}/"
+        edit_title = st.text_input(
+            "Book Name",
+            value=book["title"]
         )
 
-        if response.status_code == 200:
+        edit_author = st.text_input(
+            "Author",
+            value=book["author"]
+        )
 
-            books = response.json()
+        edit_genre = st.text_input(
+            "Genre",
+            value=book["genre"]
+        )
 
-            if not books:
+        edit_year = st.number_input(
+            "Year",
+            min_value=1001,
+            value=book["year"],
+            step=1
+        )
 
-                st.info("No books found.")
+        edit_stock = st.checkbox(
+            "In Stock",
+            value=book["in_stock"]
+        )
 
-            else:
+        col1, col2 = st.columns(2)
 
-                for book in books:
+        with col1:
 
-                    st.subheader(
-                        f"📖 {book['title']}"
+            if st.button(
+                "💾 Save Changes",
+                use_container_width=True
+            ):
+
+                data = {
+                    "title": edit_title,
+                    "author": edit_author,
+                    "genre": edit_genre,
+                    "year": edit_year,
+                    "in_stock": edit_stock
+                }
+
+                response = requests.put(
+                    f"{API_URL}/{book['id']}",
+                    json=data
+                )
+
+                if response.status_code == 200:
+
+                    st.success(
+                        "Book updated successfully!"
                     )
 
-                    col1, col2 = st.columns(2)
+                    st.session_state.selected_book = None
+                    st.session_state.edit_book = False
 
-                    with col1:
+                    st.rerun()
 
-                        st.write(
-                            f"**Author:** {book['author']}"
-                        )
+                else:
 
-                        st.write(
-                            f"**Genre:** {book['genre']}"
-                        )
+                    st.error(response.text)
 
-                    with col2:
+        with col2:
 
-                        st.write(
-                            f"**Year:** {book['year']}"
-                        )
+            if st.button(
+                "Cancel",
+                use_container_width=True
+            ):
 
-                        if book["in_stock"]:
-
-                            st.success(
-                                "**In Stock:** ✅ Yes"
-                            )
-
-                        else:
-
-                            st.error(
-                                "**In Stock:** ❌ No"
-                            )
-
-                    st.caption(
-                        f"ID: {book['id']}"
-                    )
-
-                    st.divider()
-
-        else:
-
-            st.error(response.text)
+                st.session_state.edit_book = False
+                st.rerun()
 
 
-# -------------------------------
-# Find Book
-# -------------------------------
+# --------------------------------
+# Show Books
+# --------------------------------
 
-elif menu == "🔍 Find Book":
+else:
 
-    st.title("🔍 Find Book")
+    st.divider()
 
-    book_id = st.text_input(
-        "Enter Book ID"
-    )
+    if search:
 
-    if st.button("Find Book"):
+        st.subheader(
+            f"🔍 Search results for: {search}"
+        )
 
-        if not book_id:
+    else:
 
-            st.warning("Please enter a Book ID.")
+        st.subheader("📚 All Books")
 
-        else:
+    books = get_books(search)
 
-            response = requests.get(
-                f"{API_URL}/{book_id}"
-            )
+    if not books:
 
-            if response.status_code == 200:
+        st.info(
+            "No books found."
+        )
 
-                book = response.json()
+    else:
+
+        # Create 4 columns like an ecommerce store
+
+        columns = st.columns(4)
+
+        for index, book in enumerate(books):
+
+            with columns[index % 4]:
+
+                st.markdown(
+                    "### 📖"
+                )
 
                 st.subheader(
-                    f"📖 {book['title']}"
+                    book["title"]
                 )
 
                 st.write(
@@ -223,127 +378,22 @@ elif menu == "🔍 Find Book":
                 if book["in_stock"]:
 
                     st.success(
-                        "In Stock: Yes ✅"
+                        "✅ In Stock"
                     )
 
                 else:
 
                     st.error(
-                        "In Stock: No ❌"
+                        "❌ Out of Stock"
                     )
 
-            else:
+                if st.button(
+                    "View Details",
+                    key=f"view_{book['id']}",
+                    use_container_width=True
+                ):
 
-                st.error(
-                    response.text
-                )
+                    st.session_state.selected_book = book
+                    st.rerun()
 
-
-# -------------------------------
-# Update Book
-# -------------------------------
-
-elif menu == "✏️ Update Book":
-
-    st.title("✏️ Update Book")
-
-    book_id = st.text_input(
-        "Book ID"
-    )
-
-    title = st.text_input(
-        "New Title"
-    )
-
-    author = st.text_input(
-        "New Author"
-    )
-
-    genre = st.text_input(
-        "New Genre"
-    )
-
-    year = st.number_input(
-        "New Year",
-        min_value=1001,
-        step=1
-    )
-
-    in_stock = st.checkbox(
-        "In Stock",
-        value=False
-    )
-
-    if st.button("Update Book"):
-
-        if not book_id:
-
-            st.warning(
-                "Please enter the Book ID."
-            )
-
-        else:
-
-            data = {
-                "title": title,
-                "author": author,
-                "genre": genre,
-                "year": year,
-                "in_stock": in_stock
-            }
-
-            response = requests.put(
-                f"{API_URL}/{book_id}",
-                json=data
-            )
-
-            if response.status_code == 200:
-
-                st.success(
-                    "Book updated successfully!"
-                )
-
-            else:
-
-                st.error(
-                    response.text
-                )
-
-
-# -------------------------------
-# Delete Book
-# -------------------------------
-
-elif menu == "🗑️ Delete Book":
-
-    st.title("🗑️ Delete Book")
-
-    book_id = st.text_input(
-        "Enter Book ID"
-    )
-
-    if st.button("Delete Book"):
-
-        if not book_id:
-
-            st.warning(
-                "Please enter a Book ID."
-            )
-
-        else:
-
-            response = requests.delete(
-                f"{API_URL}/{book_id}"
-            )
-
-            if response.status_code == 200:
-
-                st.success(
-                    "Book deleted successfully!"
-                )
-
-            else:
-
-                st.error(
-                    response.text
-                )
+                st.divider()
