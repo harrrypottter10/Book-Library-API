@@ -16,8 +16,6 @@ def create_book(book: Book):
         "id": str(result.inserted_id)
     }
 
-
-# 2. GET - Get book by ID
 @book.get("/{id}")
 def get_book(id: str):
     try:
@@ -38,7 +36,7 @@ def get_book(id: str):
         )
 
 
-# 3. GET - Get all books
+
 @book.get("/")
 def get_books():
     books = conn.local.books.find()
