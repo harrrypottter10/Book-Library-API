@@ -16,25 +16,16 @@ def create_book(book: Book):
         "id": str(result.inserted_id)
     }
 
-@book.get("/{id}")
-def get_book(id: str):
-    try:
-        book = conn.local.books.find_one({"_id": ObjectId(id)})
+@book.get("/search/{title}")
+def get_book(title: str):
+    books = conn.local.books.find({
+        "title": {
+            "$regex": title,
+            "$options": "i"
+        }
+    })
 
-        if not book:
-            raise HTTPException(
-                status_code=404,
-                detail="Book not found"
-            )
-
-        return serializeDict(book)
-
-    except InvalidId:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid ID"
-        )
-
+    return serializelist(books)
 
 
 @book.get("/")

@@ -5,4 +5,4 @@ class Book(BaseModel):
     author: str
     genre: str
     year: int = Field(gt=1000)
-    in_stock: bool = True
+    in_stock: bool = False

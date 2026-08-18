@@ -5,7 +5,7 @@ def serializeDict(item) -> dict:
         "author": item["author"],
         "genre": item["genre"],
         "year": item["year"],
-        "in_stock": "Yes" if item["in_stock"] else "No"
+        "in_stock": item["in_stock"]
     }
 
 
