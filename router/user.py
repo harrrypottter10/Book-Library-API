@@ -16,8 +16,8 @@ def create_book(book: Book):
         "id": str(result.inserted_id)
     }
 
-@book.get("/search/{title}")
-def get_book(title: str):
+@book.get("/search")
+def search_book(title: str):
     books = conn.local.books.find({
         "title": {
             "$regex": title,
